@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive AI Voice Assistant</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .microphone {
+            width: 100px;
+            height: 100px;
+            background-color: #007BFF;
+            border-radius: 50%;
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: pulse 1.5s infinite;
+            cursor: pointer;
+        }
+
+        .microphone img {
+            width: 50px;
+            height: 50px;
+        }
+
+        .chat-container {
+            margin: 20px auto;
+            max-width: 600px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .chat-bubble {
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        .user-bubble {
+            background-color: #007BFF;
+            color: white;
+            text-align: right;
+            float: right;
+            clear: both;
+        }
+
+        .bot-bubble {
+            background-color: #e9ecef;
+            color: #333;
+            text-align: left;
+            float: left;
+            clear: both;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Interactive AI Voice Assistant</h1>
+    <div class="microphone" id="microphone">
+        <img src="https://cdn-icons-png.flaticon.com/512/2089/2089153.png" alt="Microphone">
+    </div>
+    <div class="chat-container" id="chat-container"></div>
+
+    <script>
+        const socket = io();
+        const microphone = document.getElementById('microphone');
+        const chatContainer = document.getElementById('chat-container');
+
+        let currentSessionId = 0; // Tracks the current active session
+
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript.trim();
+            console.log('User said:', transcript);
+
+            // Increment session ID for the new input
+            currentSessionId += 1;
+
+            // Add user message to chat
+            addChatBubble(transcript, 'user-bubble');
+
+            // Send the transcript to the server with the current session ID
+            socket.emit('user_audio', { text: transcript, sessionId: currentSessionId });
+
+            // Stop any ongoing speech synthesis
+            window.speechSynthesis.cancel();
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+        };
+
+        recognition.onend = () => {
+            microphone.classList.remove('listening');
+        };
+
+        microphone.addEventListener('click', () => {
+            microphone.classList.add('listening');
+            recognition.start();
+        });
+
+        socket.on('bot_response', (data) => {
+            console.log('Bot response received:', data.response, 'Session ID:', data.sessionId);
+
+            // Ignore responses from older sessions
+            if (data.sessionId !== currentSessionId) {
+                console.log('Ignored response for session ID:', data.sessionId);
+                return;
+            }
+
+            // Add bot response to chat
+            addChatBubble(data.response, 'bot-bubble');
+
+            // Speak the response
+            speakResponse(data.response);
+        });
+
+function addChatBubble(text, type) {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${type}`;
+    bubble.textContent = text;
+
+    // Insert the bubble at the top of the chat container
+    chatContainer.insertBefore(bubble, chatContainer.firstChild);
+
+    // Scroll to the top of the chat container (optional)
+    chatContainer.scrollTop = 0;
+}
+
+
+function speakResponse(responseText) {
+    if ('speechSynthesis' in window) {
+        // Remove special characters using a regular expression
+        const cleanedText = responseText.replace(/[^a-zA-Z0-9 .,!?]/g, '');
+
+        const utterance = new SpeechSynthesisUtterance(cleanedText);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+    } else {
+        console.error('Text-to-Speech is not supported in this browser.');
+    }
+}
+
+    </script>
+</body>
+</html>
