@@ -9,8 +9,8 @@ import os
 
 
 # Set the environment variable for authentication (use your service account key path)
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/content/drive/MyDrive/GCP/gen-lang-client-0748896060-f1c61cb77bf6.json'
-os.environ["FIREWORKS_API_KEY"] = "D1AfcywKsqg7xj1vy0cX5fRucxrulLJ2LIUNexVS0quOnWqY"
+
+os.environ["FIREWORKS_API_KEY"] = "API_KEY"
 model = ChatFireworks(model="accounts/fireworks/models/mixtral-8x7b-instruct")
 
 
